@@ -4,11 +4,11 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/shared/ProtectedRoute';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import DashboardPage from './pages/DashboardPage';
-import UsersPage from './pages/UsersPage';
-import MethodsPage from './pages/MethodsPage';
+import PaginaLogin from './pages/PaginaLogin';
+import PaginaRegistro from './pages/PaginaRegistro';
+import PaginaPainel from './pages/PaginaPainel';
+import PaginaUsuarios from './pages/PaginaUsuarios';
+import PaginaMetodos from './pages/PaginaMetodos';
 import './styles/global.css';
 
 function App() {
@@ -17,19 +17,19 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/login" element={<PaginaLogin />} />
+          <Route path="/register" element={<PaginaRegistro />} />
 
           <Route path="/dashboard" element={
-            <ProtectedRoute><DashboardPage /></ProtectedRoute>
+            <ProtectedRoute><PaginaPainel /></ProtectedRoute>
           } />
 
           <Route path="/users" element={
-            <ProtectedRoute><UsersPage /></ProtectedRoute>
+            <ProtectedRoute><PaginaUsuarios /></ProtectedRoute>
           } />
 
           <Route path="/methods" element={
-            <ProtectedRoute><MethodsPage /></ProtectedRoute>
+            <ProtectedRoute><PaginaMetodos /></ProtectedRoute>
           } />
 
           <Route path="*" element={<Navigate to="/login" replace />} />
@@ -54,4 +54,3 @@ function App() {
   );
 }
 export default App;
-

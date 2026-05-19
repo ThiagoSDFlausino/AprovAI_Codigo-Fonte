@@ -1,10 +1,10 @@
 // src/components/methods/MethodModal.js
 import React, { useState, useEffect } from 'react';
 import { X, Plus } from 'lucide-react';
-import StudyMethodController from '../../controllers/StudyMethodController';
+import MetodoEstudoController from '../../controllers/MetodoEstudoController';
 
 const MethodModal = ({ method, onSave, onClose, isCreate }) => {
-  const categories = StudyMethodController.getCategories().filter(c => c.value !== 'all');
+  const categories = MetodoEstudoController.getCategories().filter(c => c.value !== 'all');
   const [form, setForm] = useState({
     name: '', description: '', category: 'focus',
     duration_minutes: '', benefits: [], ideal_for: '',

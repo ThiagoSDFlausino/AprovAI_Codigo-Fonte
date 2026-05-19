@@ -1,8 +1,16 @@
 // src/components/users/UserModal.js
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import type { EntradaFormularioUsuario, Usuario } from '../../classes';
 
-const UserModal = ({ user, onSave, onClose, isCreate }) => {
+type UserModalProps = {
+  user?: Usuario;
+  onSave: (form: EntradaFormularioUsuario) => void;
+  onClose: () => void;
+  isCreate: boolean;
+};
+
+const UserModal = ({ user, onSave, onClose, isCreate }: UserModalProps) => {
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'standard' });
 
   useEffect(() => {
