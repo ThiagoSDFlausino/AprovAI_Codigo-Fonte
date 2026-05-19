@@ -2,13 +2,14 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import AuthService from '../services/AuthService';
 import AuthRepository from '../repositories/AuthRepository';
-import UserService from '../services/UserService';
+import UsuarioService from '../services/UsuarioService';
+import type { Usuario } from '../classes';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
+  const [profile, setProfile] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,7 +22,7 @@ export const AuthProvider = ({ children }) => {
         if (session?.user) {
           setUser(session.user);
           try {
-            const prof = await UserService.getUserProfile(session.user.id);
+            const prof = await UsuarioService.PesquisaPerfilUsuario(session.user.id);
             if (!cancelled) setProfile(prof);
           } catch {
             /* profile optional on boot */
@@ -43,7 +44,7 @@ export const AuthProvider = ({ children }) => {
         setUser(session.user);
         setTimeout(() => {
           if (cancelled) return;
-          UserService.getUserProfile(session.user.id)
+          UsuarioService.PesquisaPerfilUsuario(session.user.id)
             .then((prof) => {
               if (!cancelled) setProfile(prof);
             })
@@ -76,7 +77,7 @@ export const AuthProvider = ({ children }) => {
     }
     if (!id) return;
     try {
-      const prof = await UserService.getUserProfile(id);
+      const prof = await UsuarioService.PesquisaPerfilUsuario(id);
       setProfile(prof);
     } catch {
       setProfile(null);

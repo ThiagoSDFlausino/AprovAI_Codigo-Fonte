@@ -1,6 +1,6 @@
 // src/services/AuthService.js
 import AuthRepository from '../repositories/AuthRepository';
-import UserRepository from '../repositories/UserRepository';
+import UsuarioRepository from '../repositories/UsuarioRepository';
 
 const AuthService = {
   async login(email, password) {
@@ -27,9 +27,9 @@ const AuthService = {
     // Se o trigger não existir no projeto, só conseguimos gravar `profiles` quando já há sessão
     // (auth.uid() = id na política de INSERT).
     if (authData.session?.user?.id === authData.user.id) {
-      const existing = await UserRepository.findByIdMaybe(authData.user.id);
+      const existing = await UsuarioRepository.PesquisaUsuarioPorIdOpcional(authData.user.id);
       if (!existing) {
-        await UserRepository.CadastroUsuario({
+        await UsuarioRepository.CadastroUsuario({
           id: authData.user.id,
           email,
           name: (name || '').trim() || email.split('@')[0],
