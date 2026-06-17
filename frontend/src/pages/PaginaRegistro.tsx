@@ -1,4 +1,3 @@
-// src/pages/PaginaRegistro.tsx
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { BookOpen, Mail, Lock, User, ArrowRight } from 'lucide-react';

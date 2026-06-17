@@ -1,5 +1,4 @@
 import UsuarioDAO from '../dao/UsuarioDAO';
-import type { Usuario } from '../classes';
 
 const UsuarioRepository = {
   async PesquisaUsuario() {
@@ -14,11 +13,11 @@ const UsuarioRepository = {
     return await UsuarioDAO.PesquisaUsuarioPorIdOpcional(id);
   },
 
-  async CadastroUsuario(data: Partial<Usuario>) {
+  async CadastroUsuario(data: Record<string, unknown>) {
     return await UsuarioDAO.CadastroUsuario(data);
   },
 
-  async AtualizarUsuario(id: string, data: Partial<Usuario>) {
+  async AtualizarUsuario(id: string, data: Record<string, unknown>) {
     return await UsuarioDAO.AtualizarUsuario(id, data);
   },
 

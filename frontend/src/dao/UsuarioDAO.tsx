@@ -1,5 +1,4 @@
 import { supabase } from '../utils/supabaseClient';
-import type { Usuario } from '../classes';
 
 const UsuarioDAO = {
   async PesquisaUsuario() {
@@ -8,7 +7,7 @@ const UsuarioDAO = {
       .select('*')
       .order('created_at', { ascending: false });
     if (error) throw error;
-    return data as Usuario[];
+    return data as Record<string, unknown>[];
   },
 
   async PesquisaUsuarioPorId(id: string) {
@@ -18,7 +17,7 @@ const UsuarioDAO = {
       .eq('id', id)
       .single();
     if (error) throw error;
-    return data as Usuario;
+    return data as Record<string, unknown>;
   },
 
   async PesquisaUsuarioPorIdOpcional(id: string) {
@@ -28,20 +27,20 @@ const UsuarioDAO = {
       .eq('id', id)
       .maybeSingle();
     if (error) throw error;
-    return data as Usuario | null;
+    return data as Record<string, unknown> | null;
   },
 
-  async CadastroUsuario(userData: Partial<Usuario>) {
+  async CadastroUsuario(userData: Record<string, unknown>) {
     const { data, error } = await supabase
       .from('profiles')
       .insert([userData])
       .select()
       .single();
     if (error) throw error;
-    return data as Usuario;
+    return data as Record<string, unknown>;
   },
 
-  async AtualizarUsuario(id: string, userData: Partial<Usuario>) {
+  async AtualizarUsuario(id: string, userData: Record<string, unknown>) {
     const { data, error } = await supabase
       .from('profiles')
       .update({ ...userData, updated_at: new Date().toISOString() })
@@ -49,7 +48,7 @@ const UsuarioDAO = {
       .select()
       .single();
     if (error) throw error;
-    return data as Usuario;
+    return data as Record<string, unknown>;
   },
 
   async DeletarUsuario(id: string) {
@@ -68,7 +67,7 @@ const UsuarioDAO = {
       .eq('email', email)
       .maybeSingle();
     if (error) throw error;
-    return data as Usuario | null;
+    return data as Record<string, unknown> | null;
   },
 
   async PesquisaRegistroUsersOpcional(id: string) {

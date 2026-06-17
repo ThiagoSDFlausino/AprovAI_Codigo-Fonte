@@ -1,4 +1,3 @@
-// src/controllers/AuthController.js
 import AuthService from '../services/AuthService';
 
 function getAuthErrorInfo(error) {
@@ -19,10 +18,6 @@ function isEmailNotConfirmedError(error) {
 }
 
 const AuthController = {
-  /**
-   * @param refreshProfile opcional: `(userId) => Promise<void>` — recarrega `profiles` logo após o login
-   * para `isAdmin` e botões de admin aparecerem sem esperar outro ciclo do `onAuthStateChange`.
-   */
   async handleLogin(email, password, navigate, toast, refreshProfile) {
     try {
       const { data } = await AuthService.login(email, password);

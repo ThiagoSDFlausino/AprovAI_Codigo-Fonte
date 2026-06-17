@@ -1,10 +1,16 @@
-// src/components/shared/ProtectedRoute.js
+
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { Permissao } from '../../classes';
 
-const ProtectedRoute = ({ children, adminOnly = false }) => {
-  const { user, profile, loading } = useAuth();
+type ProtectedRouteProps = {
+  children: React.ReactElement;
+  allowedPermissoes?: Permissao[];
+};
+
+const ProtectedRoute = ({ children, allowedPermissoes }: ProtectedRouteProps): React.ReactElement => {
+  const { user, permissao, loading } = useAuth();
 
   if (loading) {
     return (
@@ -16,8 +22,11 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  if (adminOnly && profile?.role !== 'admin') {
-    return <Navigate to="/dashboard" replace />;
+  if (allowedPermissoes) {
+    const papel = permissao ?? Permissao.Aluno;
+    if (!allowedPermissoes.includes(papel)) {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return children;

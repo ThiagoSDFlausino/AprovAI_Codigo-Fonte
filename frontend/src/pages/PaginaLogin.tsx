@@ -1,4 +1,3 @@
-// src/pages/PaginaLogin.tsx
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { BookOpen, Mail, Lock, ArrowRight } from 'lucide-react';

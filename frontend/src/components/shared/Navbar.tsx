@@ -1,23 +1,26 @@
-// src/components/shared/Navbar.js
+
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { BookOpen, Users, LogOut, LayoutDashboard, ShieldCheck, RefreshCw } from 'lucide-react';
+import { BookOpen, Users, LogOut, LayoutDashboard, ShieldCheck, RefreshCw, GraduationCap } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import AuthController from '../../controllers/AuthController';
 import toast from 'react-hot-toast';
 
 const Navbar = () => {
-  const { profile, isAdmin, refreshProfile } = useAuth();
+  const { profile, isAdm, isProfessor, isAluno, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const handleLogout = () => AuthController.handleLogout(navigate, toast);
 
   const navLinks = [
-    { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
-    { to: '/methods', label: 'Métodos', icon: <BookOpen size={16} /> },
-    { to: '/users', label: 'Usuários', icon: <Users size={16} /> },
-  ];
+    { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} />, show: true },
+    { to: '/methods', label: 'Métodos', icon: <BookOpen size={16} />, show: isAdm },
+    { to: '/materias', label: 'Matérias', icon: <GraduationCap size={16} />, show: isAdm || isProfessor || isAluno },
+    { to: '/users', label: 'Usuários', icon: <Users size={16} />, show: isAdm },
+  ].filter((link) => link.show);
+
+  const roleLabel = isAdm ? 'Administrador' : isProfessor ? 'Professor' : 'Aluno';
 
   return (
     <header style={{
@@ -29,7 +32,6 @@ const Navbar = () => {
         maxWidth: 1200, margin: '0 auto', padding: '0 24px',
         display: 'flex', alignItems: 'center', gap: 32, height: 60,
       }}>
-        {/* Logo */}
         <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
           <div style={{
             width: 34, height: 34, background: 'var(--primary)',
@@ -40,7 +42,6 @@ const Navbar = () => {
           <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>AprovAI</span>
         </Link>
 
-        {/* Nav links */}
         <nav style={{ display: 'flex', gap: 4, flex: 1 }}>
           {navLinks.map(link => {
             const active = location.pathname.startsWith(link.to);
@@ -63,21 +64,20 @@ const Navbar = () => {
           })}
         </nav>
 
-        {/* Right side */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {isAdmin && (
+          {(isAdm || isProfessor) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--accent)' }}>
               <ShieldCheck size={14} />
-              <span>Admin</span>
+              <span>{roleLabel}</span>
             </div>
           )}
           <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            {profile?.name || profile?.email}
+            {profile?.nome || profile?.email}
           </div>
           <button
             type="button"
             className="btn-icon"
-            title="Recarregar perfil (útil após mudar role no Supabase)"
+            title="Recarregar perfil"
             onClick={async () => {
               await refreshProfile();
               toast.success('Perfil atualizado.');
