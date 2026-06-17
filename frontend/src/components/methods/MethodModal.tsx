@@ -1,4 +1,4 @@
-// src/components/methods/MethodModal.js
+
 import React, { useState, useEffect } from 'react';
 import { X, Plus } from 'lucide-react';
 import MetodoEstudoController from '../../controllers/MetodoEstudoController';

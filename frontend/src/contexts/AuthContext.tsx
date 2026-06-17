@@ -1,32 +1,62 @@
-// src/contexts/AuthContext.js
+
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import type { User } from '@supabase/supabase-js';
 import AuthService from '../services/AuthService';
 import AuthRepository from '../repositories/AuthRepository';
 import UsuarioService from '../services/UsuarioService';
-import type { Usuario } from '../classes';
+import { criarUsuario, parsePermissao, Permissao, type Usuario } from '../classes';
 
-const AuthContext = createContext(null);
+type AuthContextValue = {
+  user: User | null;
+  profile: Usuario | null;
+  permissao: Permissao | null;
+  loading: boolean;
+  isAdm: boolean;
+  isProfessor: boolean;
+  isAluno: boolean;
+  refreshProfile: (userIdOverride?: string) => Promise<void>;
+};
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+function perfilFallback(authUser: User): Usuario {
+  return criarUsuario({
+    id: authUser.id,
+    email: authUser.email ?? '',
+    name: String(authUser.user_metadata?.name ?? '').trim() || authUser.email?.split('@')[0] || '',
+    role: authUser.user_metadata?.role ?? Permissao.Aluno,
+  });
+}
+
+function resolverPermissao(profile: Usuario | null, authUser: User | null): Permissao | null {
+  if (profile) return profile.permissao;
+  if (!authUser) return null;
+  return parsePermissao(String(authUser.user_metadata?.role ?? Permissao.Aluno));
+}
+
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const carregarPerfil = useCallback(async (authUser: User) => {
+    try {
+      return await UsuarioService.PesquisaPerfilUsuario(authUser.id);
+    } catch {
+      return perfilFallback(authUser);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
-    // Initial session check (not inside onAuthStateChange lock — async OK here)
     AuthService.getCurrentSession()
       .then(async (session) => {
         if (cancelled) return;
         if (session?.user) {
           setUser(session.user);
-          try {
-            const prof = await UsuarioService.PesquisaPerfilUsuario(session.user.id);
-            if (!cancelled) setProfile(prof);
-          } catch {
-            /* profile optional on boot */
-          }
+          const prof = await carregarPerfil(session.user);
+          if (!cancelled) setProfile(prof);
         }
       })
       .catch(() => {})
@@ -34,8 +64,6 @@ export const AuthProvider = ({ children }) => {
         if (!cancelled) setLoading(false);
       });
 
-    // Never use async + await on other Supabase calls inside this callback — it runs under
-    // an internal auth lock and causes deadlock (signIn hangs forever). Defer profile load.
     const {
       data: { subscription },
     } = AuthService.onAuthStateChange((_event, session) => {
@@ -44,11 +72,13 @@ export const AuthProvider = ({ children }) => {
         setUser(session.user);
         setTimeout(() => {
           if (cancelled) return;
-          UsuarioService.PesquisaPerfilUsuario(session.user.id)
+          carregarPerfil(session.user)
             .then((prof) => {
               if (!cancelled) setProfile(prof);
             })
-            .catch(() => {});
+            .catch(() => {
+              if (!cancelled) setProfile(perfilFallback(session.user));
+            });
         }, 0);
       } else {
         setUser(null);
@@ -60,34 +90,44 @@ export const AuthProvider = ({ children }) => {
       cancelled = true;
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [carregarPerfil]);
 
-  /**
-   * Recarrega `public.profiles` para o utilizador autenticado.
-   * Use após promover a admin no SQL (sem fechar sessão) ou passe `userId` logo após o login.
-   */
-  const refreshProfile = useCallback(async (userIdOverride) => {
-    let id = userIdOverride;
-    if (!id) {
+  const refreshProfile = useCallback(async (userIdOverride?: string) => {
+    let authUser: User | null = user;
+    if (userIdOverride) {
       try {
-        id = (await AuthRepository.getCurrentUser())?.id;
+        const session = await AuthService.getCurrentSession();
+        if (session?.user?.id === userIdOverride) authUser = session.user;
       } catch {
-        id = undefined;
+        authUser = null;
       }
     }
-    if (!id) return;
-    try {
-      const prof = await UsuarioService.PesquisaPerfilUsuario(id);
-      setProfile(prof);
-    } catch {
-      setProfile(null);
+    if (!authUser) {
+      try {
+        authUser = (await AuthRepository.getCurrentUser()) as User | null;
+      } catch {
+        authUser = null;
+      }
     }
-  }, []);
+    if (!authUser?.id) return;
+    try {
+      const prof = await carregarPerfil(authUser);
+      setProfile(prof);
+      setUser(authUser);
+    } catch {
+      setProfile(perfilFallback(authUser));
+    }
+  }, [user, carregarPerfil]);
 
-  const isAdmin = (profile?.role || '').toLowerCase() === 'admin';
+  const permissao = resolverPermissao(profile, user);
+  const isAdm = permissao === Permissao.ADM;
+  const isProfessor = permissao === Permissao.Professor;
+  const isAluno = permissao === Permissao.Aluno;
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isAdmin, refreshProfile }}>
+    <AuthContext.Provider
+      value={{ user, profile, permissao, loading, isAdm, isProfessor, isAluno, refreshProfile }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,4 +1,4 @@
-// src/dao/AuthDAO.js
+
 import { supabase } from '../utils/supabaseClient';
 
 const AuthDAO = {
@@ -19,7 +19,7 @@ const AuthDAO = {
       options: {
         data: {
           name: userMetadata.name ?? '',
-          role: userMetadata.role ?? 'standard',
+          role: userMetadata.role ?? 'aluno',
         },
       },
     });

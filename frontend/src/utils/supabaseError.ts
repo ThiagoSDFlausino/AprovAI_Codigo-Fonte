@@ -1,4 +1,3 @@
-/** Mensagem legível a partir de erros do PostgREST / Supabase JS */
 export function getSupabaseErrorMessage(error: unknown): string {
   if (error == null) return 'Erro desconhecido';
   if (typeof error === 'string') return error;

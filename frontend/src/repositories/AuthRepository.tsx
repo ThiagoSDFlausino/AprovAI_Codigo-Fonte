@@ -1,4 +1,4 @@
-// src/repositories/AuthRepository.js
+  
 import AuthDAO from '../dao/AuthDAO';
 
 const AuthRepository = {

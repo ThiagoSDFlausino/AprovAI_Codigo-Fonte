@@ -1,14 +1,15 @@
-// src/App.js
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/shared/ProtectedRoute';
+import { Permissao } from './classes';
 import PaginaLogin from './pages/PaginaLogin';
 import PaginaRegistro from './pages/PaginaRegistro';
 import PaginaPainel from './pages/PaginaPainel';
 import PaginaUsuarios from './pages/PaginaUsuarios';
 import PaginaMetodos from './pages/PaginaMetodos';
+import PaginaMaterias from './pages/PaginaMaterias';
 import './styles/global.css';
 
 function App() {
@@ -25,11 +26,21 @@ function App() {
           } />
 
           <Route path="/users" element={
-            <ProtectedRoute><PaginaUsuarios /></ProtectedRoute>
+            <ProtectedRoute allowedPermissoes={[Permissao.ADM]}>
+              <PaginaUsuarios />
+            </ProtectedRoute>
           } />
 
           <Route path="/methods" element={
-            <ProtectedRoute><PaginaMetodos /></ProtectedRoute>
+            <ProtectedRoute allowedPermissoes={[Permissao.ADM]}>
+              <PaginaMetodos />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/materias" element={
+            <ProtectedRoute allowedPermissoes={[Permissao.ADM, Permissao.Professor, Permissao.Aluno]}>
+              <PaginaMaterias />
+            </ProtectedRoute>
           } />
 
           <Route path="*" element={<Navigate to="/login" replace />} />
