@@ -1,67 +1,67 @@
 -- ============================================================
--- AprovAI - Supabase Migration
--- Run this in your Supabase SQL Editor (Dashboard > SQL Editor)
+-- AprovAI — Schema Supabase (UM único arquivo)
+--
+-- Instalação NOVA (banco vazio):
+--   Execute o arquivo inteiro no SQL Editor do Supabase.
+--
+-- Banco JÁ EXISTENTE (Usuario + MetodoEstudo já criados):
+--   Execute APENAS a seção "PATCH — Materia" no final deste arquivo.
+--   Não recrie o banco nem rode o script completo de novo.
 -- ============================================================
 
 -- ============================================================
--- 1. PROFILES TABLE
+-- 1. TABELA "Usuario" (classe Usuario)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  name TEXT,
-  email TEXT UNIQUE NOT NULL,
-  role TEXT NOT NULL DEFAULT 'standard' CHECK (role IN ('admin', 'standard')),
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
 
--- Auto-create profile on auth signup (optional trigger)
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger AS $$
-BEGIN
-  INSERT INTO public.profiles (id, email, name, role)
-  VALUES (
-    NEW.id,
-    NEW.email,
-    COALESCE(NULLIF(trim(NEW.raw_user_meta_data->>'name'), ''), split_part(NEW.email, '@', 1)),
-    CASE
-      WHEN (NEW.raw_user_meta_data->>'role') IN ('admin', 'standard') THEN (NEW.raw_user_meta_data->>'role')
-      ELSE 'standard'
-    END
-  )
-  ON CONFLICT (id) DO NOTHING;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
--- Se `profiles` não for preenchido ao registar: confirme o trigger em
--- Database → Triggers em `auth.users`, ou rode de novo o bloco da função/trigger acima.
-
--- ============================================================
--- 2. STUDY METHODS TABLE
--- ============================================================
-CREATE TABLE IF NOT EXISTS public.study_methods (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  description TEXT NOT NULL,
-  category TEXT NOT NULL CHECK (category IN ('focus', 'organization', 'revision', 'memorization', 'reading', 'practice')),
-  duration_minutes INTEGER,
-  benefits TEXT[] DEFAULT '{}',
-  ideal_for TEXT,
-  created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+CREATE TABLE public."Usuario" (
+  id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  nome          TEXT NOT NULL,
+  email         TEXT NOT NULL UNIQUE,
+  senha         TEXT,
+  perfil        TEXT NOT NULL DEFAULT 'Aluno'
+                  CHECK (perfil IN ('Adm', 'Aluno', 'Professor')),
+  funcao        TEXT,
+  formacao      TEXT,
+  matricula     INTEGER,
+  curso         TEXT,
+  criado_em     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================
--- 3. HELPER — deteção de admin (SECURITY DEFINER + search_path seguro)
--- Evita falhas em políticas RLS quando o sub-SELECT em `profiles` interage mal com o contexto.
+-- 2. TABELA "MetodoEstudo" (classe MetodoEstudo)
 -- ============================================================
+
+CREATE TABLE public."MetodoEstudo" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nome          TEXT NOT NULL,
+  descricao     TEXT NOT NULL,
+  categoria     TEXT NOT NULL
+                  CHECK (categoria IN ('focus', 'organization', 'revision', 'memorization', 'reading', 'practice')),
+  duracao       INTEGER,
+  beneficios    TEXT[] DEFAULT '{}',
+  ideal_para    TEXT,
+  criado_por    UUID REFERENCES public."Usuario"(id) ON DELETE SET NULL,
+  criado_em     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- 3. TABELA "Materia" (classe Materia)
+-- ============================================================
+
+CREATE TABLE public."Materia" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sigla         TEXT NOT NULL UNIQUE,
+  criado_por    UUID REFERENCES public."Usuario"(id) ON DELETE SET NULL,
+  criado_em     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- 4. FUNÇÕES AUXILIARES
+-- ============================================================
+
 CREATE OR REPLACE FUNCTION public.is_current_user_admin()
 RETURNS boolean
 LANGUAGE plpgsql
@@ -70,95 +70,159 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  -- Garante leitura de profiles/users no contexto RLS (ex.: políticas em INSERT).
   PERFORM set_config('row_security', 'off', true);
 
   IF EXISTS (
-    SELECT 1 FROM public.profiles p
-    WHERE p.id = auth.uid() AND lower(btrim(p.role::text)) = 'admin'
+    SELECT 1 FROM public."Usuario" u
+    WHERE u.id = auth.uid()
+      AND lower(btrim(u.perfil::text)) IN ('admin', 'adm')
   ) THEN
     RETURN true;
   END IF;
-  IF to_regclass('public.users') IS NOT NULL AND EXISTS (
-    SELECT 1 FROM public.users u
-    WHERE u.id = auth.uid() AND lower(btrim(u.role::text)) = 'admin'
-  ) THEN
-    RETURN true;
-  END IF;
+
   RETURN false;
 END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.is_current_user_admin() TO authenticated;
 
+CREATE OR REPLACE FUNCTION public.is_current_user_professor()
+RETURNS boolean
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  PERFORM set_config('row_security', 'off', true);
+
+  IF EXISTS (
+    SELECT 1 FROM public."Usuario" u
+    WHERE u.id = auth.uid()
+      AND lower(btrim(u.perfil::text)) = 'professor'
+  ) THEN
+    RETURN true;
+  END IF;
+
+  RETURN false;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_current_user_professor() TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  perfil_usuario TEXT;
+BEGIN
+  perfil_usuario := CASE lower(btrim(COALESCE(NEW.raw_user_meta_data->>'role', '')))
+    WHEN 'adm' THEN 'Adm'
+    WHEN 'admin' THEN 'Adm'
+    WHEN 'professor' THEN 'Professor'
+    WHEN 'aluno' THEN 'Aluno'
+    WHEN 'standard' THEN 'Aluno'
+    ELSE 'Aluno'
+  END;
+
+  INSERT INTO public."Usuario" (id, nome, email, senha, perfil)
+  VALUES (
+    NEW.id,
+    COALESCE(NULLIF(trim(NEW.raw_user_meta_data->>'name'), ''), split_part(NEW.email, '@', 1)),
+    NEW.email,
+    NULL,
+    perfil_usuario
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 -- ============================================================
--- 4. ROW LEVEL SECURITY (RLS)
+-- 5. ROW LEVEL SECURITY (RLS)
 -- ============================================================
 
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.study_methods ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."Usuario" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."MetodoEstudo" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."Materia" ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "profiles_select_authenticated" ON public.profiles;
-DROP POLICY IF EXISTS "profiles_insert_admin" ON public.profiles;
-DROP POLICY IF EXISTS "profiles_update_admin_or_self" ON public.profiles;
-DROP POLICY IF EXISTS "profiles_delete_admin" ON public.profiles;
-DROP POLICY IF EXISTS "methods_select_authenticated" ON public.study_methods;
-DROP POLICY IF EXISTS "methods_insert_admin" ON public.study_methods;
-DROP POLICY IF EXISTS "methods_update_admin" ON public.study_methods;
-DROP POLICY IF EXISTS "methods_delete_admin" ON public.study_methods;
-
-CREATE POLICY "profiles_select_authenticated"
-  ON public.profiles FOR SELECT
+CREATE POLICY "Usuario_select_autenticado"
+  ON public."Usuario" FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "profiles_insert_admin"
-  ON public.profiles FOR INSERT
+CREATE POLICY "Usuario_insert_adm"
+  ON public."Usuario" FOR INSERT
   TO authenticated
   WITH CHECK (
     public.is_current_user_admin()
     OR auth.uid() = id
   );
 
-CREATE POLICY "profiles_update_admin_or_self"
-  ON public.profiles FOR UPDATE
+CREATE POLICY "Usuario_update_adm_ou_proprio"
+  ON public."Usuario" FOR UPDATE
   TO authenticated
   USING (auth.uid() = id OR public.is_current_user_admin())
   WITH CHECK (auth.uid() = id OR public.is_current_user_admin());
 
-CREATE POLICY "profiles_delete_admin"
-  ON public.profiles FOR DELETE
+CREATE POLICY "Usuario_delete_adm"
+  ON public."Usuario" FOR DELETE
   TO authenticated
   USING (public.is_current_user_admin());
 
-CREATE POLICY "methods_select_authenticated"
-  ON public.study_methods FOR SELECT
+CREATE POLICY "MetodoEstudo_select_autenticado"
+  ON public."MetodoEstudo" FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "methods_insert_admin"
-  ON public.study_methods FOR INSERT
+CREATE POLICY "MetodoEstudo_insert_adm"
+  ON public."MetodoEstudo" FOR INSERT
   TO authenticated
   WITH CHECK (public.is_current_user_admin());
 
-CREATE POLICY "methods_update_admin"
-  ON public.study_methods FOR UPDATE
+CREATE POLICY "MetodoEstudo_update_adm"
+  ON public."MetodoEstudo" FOR UPDATE
   TO authenticated
   USING (public.is_current_user_admin());
 
-CREATE POLICY "methods_delete_admin"
-  ON public.study_methods FOR DELETE
+CREATE POLICY "MetodoEstudo_delete_adm"
+  ON public."MetodoEstudo" FOR DELETE
   TO authenticated
   USING (public.is_current_user_admin());
 
+CREATE POLICY "Materia_select_autenticado"
+  ON public."Materia" FOR SELECT
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "Materia_insert_professor"
+  ON public."Materia" FOR INSERT
+  TO authenticated
+  WITH CHECK (public.is_current_user_professor());
+
+CREATE POLICY "Materia_update_professor"
+  ON public."Materia" FOR UPDATE
+  TO authenticated
+  USING (public.is_current_user_professor());
+
+CREATE POLICY "Materia_delete_professor"
+  ON public."Materia" FOR DELETE
+  TO authenticated
+  USING (public.is_current_user_professor());
+
 -- ============================================================
--- 5. SEED DATA (Sample study methods)
+-- 6. DADOS INICIAIS
 -- ============================================================
 
--- NOTE: Replace 'YOUR_ADMIN_USER_ID' with your actual admin UUID
--- or leave created_by as NULL for anonymous seeding
-
-INSERT INTO public.study_methods (name, description, category, duration_minutes, benefits, ideal_for)
+INSERT INTO public."MetodoEstudo" (nome, descricao, categoria, duracao, beneficios, ideal_para)
 VALUES
   (
     'Técnica Pomodoro',
@@ -186,12 +250,68 @@ VALUES
   );
 
 -- ============================================================
--- 6. HOW TO CREATE YOUR FIRST ADMIN
+-- PATCH — Materia (banco já existente)
+-- Execute SOMENTE esta seção se "Usuario" e "MetodoEstudo"
+-- já existirem. Reaproveita o mesmo projeto Supabase.
 -- ============================================================
 
--- After registering via the app, run this to promote your user to admin:
--- UPDATE public.profiles SET role = 'admin' WHERE email = 'seu@email.com';
+CREATE TABLE IF NOT EXISTS public."Materia" (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sigla         TEXT NOT NULL UNIQUE,
+  criado_por    UUID REFERENCES public."Usuario"(id) ON DELETE SET NULL,
+  criado_em     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
--- ============================================================
--- Done! Your database is ready.
--- ============================================================
+CREATE OR REPLACE FUNCTION public.is_current_user_professor()
+RETURNS boolean
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  PERFORM set_config('row_security', 'off', true);
+
+  IF EXISTS (
+    SELECT 1 FROM public."Usuario" u
+    WHERE u.id = auth.uid()
+      AND lower(btrim(u.perfil::text)) = 'professor'
+  ) THEN
+    RETURN true;
+  END IF;
+
+  RETURN false;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_current_user_professor() TO authenticated;
+
+ALTER TABLE public."Materia" ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Materia_select_autenticado" ON public."Materia";
+DROP POLICY IF EXISTS "Materia_insert_professor" ON public."Materia";
+DROP POLICY IF EXISTS "Materia_update_professor" ON public."Materia";
+DROP POLICY IF EXISTS "Materia_delete_professor" ON public."Materia";
+
+CREATE POLICY "Materia_select_autenticado"
+  ON public."Materia" FOR SELECT
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "Materia_insert_professor"
+  ON public."Materia" FOR INSERT
+  TO authenticated
+  WITH CHECK (public.is_current_user_professor());
+
+CREATE POLICY "Materia_update_professor"
+  ON public."Materia" FOR UPDATE
+  TO authenticated
+  USING (public.is_current_user_professor());
+
+CREATE POLICY "Materia_delete_professor"
+  ON public."Materia" FOR DELETE
+  TO authenticated
+  USING (public.is_current_user_professor());
+
+NOTIFY pgrst, 'reload schema';

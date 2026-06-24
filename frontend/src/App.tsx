@@ -1,14 +1,14 @@
-// src/App.js
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider } from './Auth/contexts/AuthContext';
 import ProtectedRoute from './components/shared/ProtectedRoute';
-import PaginaLogin from './pages/PaginaLogin';
-import PaginaRegistro from './pages/PaginaRegistro';
-import PaginaPainel from './pages/PaginaPainel';
-import PaginaUsuarios from './pages/PaginaUsuarios';
-import PaginaMetodos from './pages/PaginaMetodos';
+import PaginaLogin from './Auth/pages/PaginaLogin';
+import PaginaRegistro from './Auth/pages/PaginaRegistro';
+import PaginaPainel from './Auth/pages/PaginaPainel';
+import PaginaUsuarios from './ManterUsuario/Pagina/ManterUsuarios';
+import PaginaMetodos from './ManterMetodoEstudo/Pagina/ManterMetodoEstudoPagina';
+import PaginaMaterias from './ManterMateria/Pagina/ManterMateriaPagina';
 import './styles/global.css';
 
 function App() {
@@ -30,6 +30,10 @@ function App() {
 
           <Route path="/methods" element={
             <ProtectedRoute><PaginaMetodos /></ProtectedRoute>
+          } />
+
+          <Route path="/subjects" element={
+            <ProtectedRoute><PaginaMaterias /></ProtectedRoute>
           } />
 
           <Route path="*" element={<Navigate to="/login" replace />} />
