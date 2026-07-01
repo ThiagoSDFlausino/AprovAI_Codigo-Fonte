@@ -6,17 +6,11 @@ Uma aplicação web moderna para gerenciamento de métodos de estudo, matérias 
 
 ### Requisitos de Sistema
 - **Node.js**: v16.0.0 ou superior
-- **npm**: v7.0.0 ou superior (ou yarn v1.22.0+)
-- **Git**: v2.0.0 ou superior
+- **npm**: v7.0.0 ou superior
 
 ### Requisitos de Serviços
 - **Supabase**: Conta ativa com projeto configurado
 - **Navegador moderno**: Chrome, Firefox, Safari, Edge (versões recentes)
-
-### Requisitos de Conhecimento
-- JavaScript/TypeScript básico
-- Familiaridade com React
-- Conceitos básicos de SQL e autenticação
 
 ## 📁 Estrutura das Pastas
 
@@ -137,15 +131,6 @@ Se quiser permitir login apenas com email e senha (sem link de confirmação):
 2. Desabilite **"Confirm email"**
 3. Clique em **Save**
 
-Para usuários já criados:
-- Dashboard → **Authentication** → **Users**
-- Clique no menu do usuário e confirme o email manualmente
-
-Ou execute no SQL Editor:
-```sql
-UPDATE auth.users SET email_confirmed_at = NOW() WHERE email = 'user@example.com';
-```
-
 ### 2. Configurar Variáveis de Ambiente
 
 #### 2.1 Criar arquivo `.env`
@@ -175,11 +160,6 @@ REACT_APP_SUPABASE_ANON_KEY=sua-chave-anonima-aqui
 ```bash
 cd frontend
 npm start
-```
-
-Ou com Yarn:
-```bash
-yarn start
 ```
 
 ### 2. Acessar a Aplicação
@@ -389,22 +369,3 @@ kill -9 <PID>
 1. Verifique logs no Vercel Dashboard → **Deployments** → [seu deploy]
 2. Confirme que `Root Directory` está correto: `AprovAI_Codigo_Fonte/frontend`
 3. Verifique `package.json` tem script `build`
-
-## 📝 Licença
-
-Este projeto está sob licença [MIT](LICENSE).
-
-## 👤 Autor
-
-**Thiago Flausino**
-- GitHub: [@ThiagoSDFlausino](https://github.com/ThiagoSDFlausino)
-
-## 🤝 Contribuições
-
-Contribuições são bem-vindas! Abra uma issue ou pull request.
-
----
-
-**Última atualização**: 01/07/2026
-
-Para mais informações, consulte a [documentação do Supabase](https://supabase.com/docs) ou [React](https://react.dev).
