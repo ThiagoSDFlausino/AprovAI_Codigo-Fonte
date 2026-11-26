@@ -1,6 +1,9 @@
 import ManterRelatorioProgressoRepository from '../Repositories/ManterRelatorioProgressoRepository';
 
-import type { RelatorioProgresso } from '../Progresso/RelatorioProgresso';
+import type {
+  AlunoProgressoRelatorio,
+  RelatorioProgresso,
+} from '../Progresso/RelatorioProgresso';
 
 const ManterRelatorioProgressoService = {
   async PesquisaRelatorioProgresso(
@@ -12,6 +15,18 @@ const ManterRelatorioProgressoService = {
 
     return ManterRelatorioProgressoRepository.PesquisaRelatorioProgresso(
       professorId,
+    );
+  },
+
+  async PesquisaRelatorioProgressoAluno(
+    alunoId: string,
+  ): Promise<AlunoProgressoRelatorio> {
+    if (!alunoId || !alunoId.trim()) {
+      throw new Error('Aluno não identificado.');
+    }
+
+    return ManterRelatorioProgressoRepository.PesquisaRelatorioProgressoAluno(
+      alunoId,
     );
   },
 };

@@ -1,6 +1,9 @@
 import ManterRelatorioProgressoService from '../Service/ManterRelatorioProgressoService';
 
-import type { RelatorioProgresso } from '../Progresso/RelatorioProgresso';
+import type {
+  AlunoProgressoRelatorio,
+  RelatorioProgresso,
+} from '../Progresso/RelatorioProgresso';
 
 const ManterRelatorioProgressoController = {
   async PesquisaRelatorioProgresso(
@@ -12,6 +15,19 @@ const ManterRelatorioProgressoController = {
       );
     } catch (error) {
       console.error('Erro ao consultar relatório de progresso:', error);
+      throw error;
+    }
+  },
+
+  async PesquisaRelatorioProgressoAluno(
+    alunoId: string,
+  ): Promise<AlunoProgressoRelatorio> {
+    try {
+      return await ManterRelatorioProgressoService.PesquisaRelatorioProgressoAluno(
+        alunoId,
+      );
+    } catch (error) {
+      console.error('Erro ao consultar progresso do aluno:', error);
       throw error;
     }
   },
