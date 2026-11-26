@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -10,6 +11,7 @@ import PaginaUsuarios from './ManterUsuario/Pagina/ManterUsuarios';
 import PaginaMetodos from './ManterMetodoEstudo/Pagina/ManterMetodoEstudoPagina';
 import PaginaMaterias from './ManterMateria/Pagina/ManterMateriaPagina';
 import PaginaProgresso from './ManterProgresso/Pagina/ManterProgressoPagina';
+import PaginaAgenda from './ManterAgenda/Pagina/ManterAgendaPagina';
 import './styles/global.css';
 
 function App() {
@@ -18,32 +20,65 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
+
           <Route path="/login" element={<PaginaLogin />} />
           <Route path="/register" element={<PaginaRegistro />} />
 
-          <Route path="/dashboard" element={
-            <ProtectedRoute><PaginaPainel /></ProtectedRoute>
-          } />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <PaginaPainel />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/users" element={
-            <ProtectedRoute><PaginaUsuarios /></ProtectedRoute>
-          } />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute>
+                <PaginaUsuarios />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/methods" element={
-            <ProtectedRoute><PaginaMetodos /></ProtectedRoute>
-          } />
+          <Route
+            path="/methods"
+            element={
+              <ProtectedRoute>
+                <PaginaMetodos />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/subjects" element={
-            <ProtectedRoute><PaginaMaterias /></ProtectedRoute>
-          } />
+          <Route
+            path="/subjects"
+            element={
+              <ProtectedRoute>
+                <PaginaMaterias />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route path="/progress" element={
-              <ProtectedRoute><PaginaProgresso /></ProtectedRoute>
+          <Route
+            path="/progress"
+            element={
+              <ProtectedRoute>
+                <PaginaProgresso />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/agenda"
+            element={
+              <ProtectedRoute>
+                <PaginaAgenda />
+              </ProtectedRoute>
             }
           />
 
           <Route path="*" element={<Navigate to="/login" replace />} />
-          
         </Routes>
 
         <Toaster
@@ -56,12 +91,23 @@ function App() {
               fontFamily: 'Sora, sans-serif',
               fontSize: 14,
             },
-            success: { iconTheme: { primary: 'var(--success)', secondary: '#fff' } },
-            error: { iconTheme: { primary: 'var(--danger)', secondary: '#fff' } },
+            success: {
+              iconTheme: {
+                primary: 'var(--success)',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: 'var(--danger)',
+                secondary: '#fff',
+              },
+            },
           }}
         />
       </AuthProvider>
     </BrowserRouter>
   );
 }
+
 export default App;
