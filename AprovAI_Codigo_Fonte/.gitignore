@@ -1,0 +1,39 @@
+
+# Variáveis de ambiente
+.env
+.env.*
+!.env.example
+
+# Dependências
+node_modules/
+
+# Build
+/build
+/dist
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Arquivos temporários
+*.log
+*.tmp
+
+# Cache do Babel e ferramentas de build
+.cache/
+**/.cache/
+node_modules/.cache/

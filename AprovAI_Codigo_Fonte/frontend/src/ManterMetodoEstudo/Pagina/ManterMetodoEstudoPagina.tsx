@@ -5,7 +5,7 @@ import { useAuth } from '../../Auth/contexts/AuthContext';
 import MetodoEstudoController from '../Controller/ManterMetodoEstudoController';
 import type { MetodoEstudo } from '../../classes';
 import MethodModal from './ManterMetodoEstudoModal';
-import Navbar from '../../components/shared/Navbar';
+import Navbar from '../../components/Navbar';
 
 const categoryColors = {
   focus: { bg: 'rgba(79,142,247,0.1)', color: 'var(--primary)' },

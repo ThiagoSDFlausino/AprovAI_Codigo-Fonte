@@ -1,12 +1,12 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { BookOpen, Users, LogOut, LayoutDashboard, ShieldCheck, RefreshCw, GraduationCap } from 'lucide-react';
+import { BookOpen, Users, LogOut, LayoutDashboard, ShieldCheck, RefreshCw, GraduationCap, Activity, BarChart } from 'lucide-react';
 import { useAuth } from '../Auth/contexts/AuthContext';
 import AuthController from '../Auth/Controller/AuthController';
 import toast from 'react-hot-toast';
 
 const Navbar = () => {
-  const { profile, isAdmin, refreshProfile } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -17,6 +17,7 @@ const Navbar = () => {
     { to: '/methods', label: 'Métodos', icon: <BookOpen size={16} /> },
     { to: '/subjects', label: 'Matérias', icon: <GraduationCap size={16} /> },
     { to: '/users', label: 'Usuários', icon: <Users size={16} /> },
+    { to: '/progress', label: 'Progresso', icon: <BarChart size={16} /> },
   ];
 
   return (
@@ -74,17 +75,6 @@ const Navbar = () => {
           <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
             {profile?.nome || profile?.email}
           </div>
-          <button
-            type="button"
-            className="btn-icon"
-            title="Recarregar perfil (útil após mudar role no Supabase)"
-            onClick={async () => {
-              await refreshProfile();
-              toast.success('Perfil atualizado.');
-            }}
-          >
-            <RefreshCw size={16} />
-          </button>
           <button onClick={handleLogout} className="btn-icon" title="Sair">
             <LogOut size={16} />
           </button>

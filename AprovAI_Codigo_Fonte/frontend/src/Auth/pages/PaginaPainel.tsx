@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, Users, ShieldCheck, ArrowRight, GraduationCap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import Navbar from '../../components/shared/Navbar';
+import Navbar from '../../components/Navbar';
 
 const PaginaPainel = () => {
   const { profile, isAdmin, isProfessor } = useAuth();
