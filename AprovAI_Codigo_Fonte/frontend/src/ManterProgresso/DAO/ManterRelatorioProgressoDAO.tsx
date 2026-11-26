@@ -43,6 +43,10 @@ type ProgressoRow = {
 };
 
 const ManterRelatorioProgressoDAO = {
+  /**
+   * Pesquisa o relatório de progresso dos alunos vinculados
+   * às matérias criadas pelo professor.
+   */
   async PesquisaRelatorioProgresso(
     professorId: string,
   ): Promise<RelatorioProgresso> {
@@ -256,6 +260,156 @@ const ManterRelatorioProgressoDAO = {
       cursos,
       total_alunos: alunosRelatorio.length,
       total_cursos: cursos.length,
+    };
+  },
+
+  /**
+   * Pesquisa somente o progresso do aluno autenticado,
+   * considerando exclusivamente suas matérias vinculadas.
+   */
+  async PesquisaRelatorioProgressoAluno(
+    alunoId: string,
+  ): Promise<AlunoProgressoRelatorio> {
+    const { data: alunoData, error: erroAluno } = await supabase
+      .from('Usuario')
+      .select('id, nome, curso')
+      .eq('id', alunoId)
+      .eq('perfil', 'Aluno')
+      .single();
+
+    if (erroAluno) throw erroAluno;
+
+    const aluno = alunoData as AlunoRow;
+
+    const { data: vinculosData, error: erroVinculos } = await supabase
+      .from('MateriaAluno')
+      .select('materia_id, aluno_id')
+      .eq('aluno_id', alunoId);
+
+    if (erroVinculos) throw erroVinculos;
+
+    const vinculos = (vinculosData ?? []) as VinculoRow[];
+
+    if (vinculos.length === 0) {
+      return {
+        aluno_id: aluno.id,
+        aluno_nome: aluno.nome,
+        curso: aluno.curso?.trim() || 'Curso não informado',
+        percentual: 0,
+        materias: [],
+      };
+    }
+
+    const materiasIds = Array.from(
+      new Set(vinculos.map((vinculo) => vinculo.materia_id)),
+    );
+
+    const { data: materiasData, error: erroMaterias } = await supabase
+      .from('Materia')
+      .select('id, sigla')
+      .in('id', materiasIds)
+      .order('sigla', { ascending: true });
+
+    if (erroMaterias) throw erroMaterias;
+
+    const materias = (materiasData ?? []) as MateriaRow[];
+
+    const { data: atividadesData, error: erroAtividades } = await supabase
+      .from('Atividade')
+      .select('id, materia_id, conteudo, prazo')
+      .in('materia_id', materiasIds);
+
+    if (erroAtividades) throw erroAtividades;
+
+    const atividades = (atividadesData ?? []) as AtividadeRow[];
+
+    let progressos: ProgressoRow[] = [];
+
+    if (atividades.length > 0) {
+      const atividadesIds = atividades.map((atividade) => atividade.id);
+
+      const { data: progressosData, error: erroProgressos } = await supabase
+        .from('Progresso')
+        .select(
+          'aluno_id, atividade_id, status, percentual_conclusao, data_inicio, data_conclusao',
+        )
+        .eq('aluno_id', alunoId)
+        .in('atividade_id', atividadesIds);
+
+      if (erroProgressos) throw erroProgressos;
+
+      progressos = (progressosData ?? []) as ProgressoRow[];
+    }
+
+    const progressoPorAtividade = new Map<string, ProgressoRow>();
+
+    progressos.forEach((progresso) => {
+      progressoPorAtividade.set(progresso.atividade_id, progresso);
+    });
+
+    const atividadesPorMateria = new Map<string, AtividadeRow[]>();
+
+    atividades.forEach((atividade) => {
+      const lista = atividadesPorMateria.get(atividade.materia_id) ?? [];
+
+      lista.push(atividade);
+      atividadesPorMateria.set(atividade.materia_id, lista);
+    });
+
+    const materiasRelatorio: MateriaProgressoRelatorio[] = materias.map(
+      (materia) => {
+        const atividadesDaMateria =
+          atividadesPorMateria.get(materia.id) ?? [];
+
+        const atividadesRelatorio: AtividadeProgressoRelatorio[] =
+          atividadesDaMateria.map((atividade) => {
+            const progresso = progressoPorAtividade.get(atividade.id);
+
+            return {
+              atividade_id: atividade.id,
+              conteudo: atividade.conteudo,
+              prazo: atividade.prazo,
+              status: progresso?.status ?? StatusProgresso.NAO_INICIADO,
+              percentual_conclusao:
+                progresso?.percentual_conclusao ?? 0,
+              data_inicio: progresso?.data_inicio ?? null,
+              data_conclusao: progresso?.data_conclusao ?? null,
+            };
+          });
+
+        const percentual =
+          atividadesRelatorio.length > 0
+            ? atividadesRelatorio.reduce(
+                (soma, atividade) =>
+                  soma + atividade.percentual_conclusao,
+                0,
+              ) / atividadesRelatorio.length
+            : 0;
+
+        return {
+          materia_id: materia.id,
+          materia_sigla: materia.sigla,
+          percentual: Number(percentual.toFixed(2)),
+          total_atividades: atividadesRelatorio.length,
+          atividades: atividadesRelatorio,
+        };
+      },
+    );
+
+    const percentualGeral =
+      materiasRelatorio.length > 0
+        ? materiasRelatorio.reduce(
+            (soma, materia) => soma + materia.percentual,
+            0,
+          ) / materiasRelatorio.length
+        : 0;
+
+    return {
+      aluno_id: aluno.id,
+      aluno_nome: aluno.nome,
+      curso: aluno.curso?.trim() || 'Curso não informado',
+      percentual: Number(percentualGeral.toFixed(2)),
+      materias: materiasRelatorio,
     };
   },
 };

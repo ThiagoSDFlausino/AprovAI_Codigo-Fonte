@@ -30,27 +30,47 @@ import type {
   RelatorioProgresso,
 } from '../Progresso/RelatorioProgresso';
 
-const ManterProgressoPagina = () => {
-  const { user, isProfessor, loading: loadingAuth } = useAuth();
+const relatorioVazio: RelatorioProgresso = {
+  cursos: [],
+  total_alunos: 0,
+  total_cursos: 0,
+};
 
-  const [relatorio, setRelatorio] = useState<RelatorioProgresso>({
-    cursos: [],
-    total_alunos: 0,
-    total_cursos: 0,
-  });
+const ManterProgressoPagina = () => {
+  const {
+    user,
+    isProfessor,
+    isAluno,
+    loading: loadingAuth,
+  } = useAuth();
+
+  const [relatorio, setRelatorio] =
+    useState<RelatorioProgresso>(relatorioVazio);
+
+  const [relatorioAluno, setRelatorioAluno] =
+    useState<AlunoProgressoRelatorio | null>(null);
 
   const [loading, setLoading] = useState(true);
+
   const [cursosExpandidos, setCursosExpandidos] = useState<string[]>([]);
   const [alunosExpandidos, setAlunosExpandidos] = useState<string[]>([]);
   const [materiasExpandidas, setMateriasExpandidas] = useState<string[]>([]);
 
+  const alternar = (
+    valor: string,
+    atualizar: React.Dispatch<React.SetStateAction<string[]>>,
+  ) => {
+    atualizar((anteriores) =>
+      anteriores.includes(valor)
+        ? anteriores.filter((item) => item !== valor)
+        : [...anteriores, valor],
+    );
+  };
+
   const carregarRelatorio = async () => {
-    if (!user?.id || !isProfessor) {
-      setRelatorio({
-        cursos: [],
-        total_alunos: 0,
-        total_cursos: 0,
-      });
+    if (!user?.id || (!isProfessor && !isAluno)) {
+      setRelatorio(relatorioVazio);
+      setRelatorioAluno(null);
       setLoading(false);
       return;
     }
@@ -58,25 +78,36 @@ const ManterProgressoPagina = () => {
     setLoading(true);
 
     try {
-      const resultado =
-        await ManterRelatorioProgressoController.PesquisaRelatorioProgresso(
-          user.id,
-        );
+      if (isProfessor) {
+        const resultado =
+          await ManterRelatorioProgressoController.PesquisaRelatorioProgresso(
+            user.id,
+          );
 
-      setRelatorio(resultado);
-      setCursosExpandidos(resultado.cursos.map((curso) => curso.curso));
+        setRelatorio(resultado);
+        setRelatorioAluno(null);
+        setCursosExpandidos(
+          resultado.cursos.map((curso) => curso.curso),
+        );
+      } else {
+        const resultado =
+          await ManterRelatorioProgressoController.PesquisaRelatorioProgressoAluno(
+            user.id,
+          );
+
+        setRelatorioAluno(resultado);
+        setRelatorio(relatorioVazio);
+        setMateriasExpandidas([]);
+      }
+
       setAlunosExpandidos([]);
-      setMateriasExpandidas([]);
     } catch (error) {
       console.error('Erro ao carregar relatório de progresso:', error);
 
       toast.error('Não foi possível carregar o relatório de progresso.');
 
-      setRelatorio({
-        cursos: [],
-        total_alunos: 0,
-        total_cursos: 0,
-      });
+      setRelatorio(relatorioVazio);
+      setRelatorioAluno(null);
     } finally {
       setLoading(false);
     }
@@ -86,19 +117,7 @@ const ManterProgressoPagina = () => {
     if (!loadingAuth) {
       carregarRelatorio();
     }
-  }, [user?.id, isProfessor, loadingAuth]);
-
-  const alternar = (
-    valor: string,
-    estado: string[],
-    atualizar: React.Dispatch<React.SetStateAction<string[]>>,
-  ) => {
-    atualizar((anteriores) =>
-      anteriores.includes(valor)
-        ? anteriores.filter((item) => item !== valor)
-        : [...anteriores, valor],
-    );
-  };
+  }, [user?.id, isProfessor, isAluno, loadingAuth]);
 
   const formatarPercentual = (valor: number) =>
     `${valor.toLocaleString('pt-BR', {
@@ -111,7 +130,11 @@ const ManterProgressoPagina = () => {
     return 'var(--text-muted)';
   };
 
-  const BarraProgresso = ({ percentual }: { percentual: number }) => {
+  const BarraProgresso = ({
+    percentual,
+  }: {
+    percentual: number;
+  }) => {
     const valorSeguro = Math.min(100, Math.max(0, percentual));
 
     return (
@@ -291,13 +314,15 @@ const ManterProgressoPagina = () => {
 
           {atividade.data_inicio && (
             <span>
-              Início: {new Date(atividade.data_inicio).toLocaleDateString('pt-BR')}
+              Início:{' '}
+              {new Date(atividade.data_inicio).toLocaleDateString('pt-BR')}
             </span>
           )}
 
           {atividade.data_conclusao && (
             <span>
-              Conclusão: {new Date(atividade.data_conclusao).toLocaleDateString('pt-BR')}
+              Conclusão:{' '}
+              {new Date(atividade.data_conclusao).toLocaleDateString('pt-BR')}
             </span>
           )}
         </div>
@@ -323,11 +348,7 @@ const ManterProgressoPagina = () => {
         <button
           type="button"
           onClick={() =>
-            alternar(
-              materia.materia_id,
-              materiasExpandidas,
-              setMateriasExpandidas,
-            )
+            alternar(materia.materia_id, setMateriasExpandidas)
           }
           style={{
             width: '100%',
@@ -420,7 +441,7 @@ const ManterProgressoPagina = () => {
         <button
           type="button"
           onClick={() =>
-            alternar(aluno.aluno_id, alunosExpandidos, setAlunosExpandidos)
+            alternar(aluno.aluno_id, setAlunosExpandidos)
           }
           style={{
             width: '100%',
@@ -528,7 +549,7 @@ const ManterProgressoPagina = () => {
         <button
           type="button"
           onClick={() =>
-            alternar(curso.curso, cursosExpandidos, setCursosExpandidos)
+            alternar(curso.curso, setCursosExpandidos)
           }
           style={{
             width: '100%',
@@ -596,7 +617,10 @@ const ManterProgressoPagina = () => {
             }}
           >
             {curso.alunos.map((aluno) => (
-              <CardAluno key={aluno.aluno_id} aluno={aluno} />
+              <CardAluno
+                key={aluno.aluno_id}
+                aluno={aluno}
+              />
             ))}
           </div>
         )}
@@ -643,7 +667,7 @@ const ManterProgressoPagina = () => {
 
             <div>
               <h1 style={{ fontSize: 22, fontWeight: 700 }}>
-                Progresso
+                Meu Progresso
               </h1>
 
               <p
@@ -652,7 +676,9 @@ const ManterProgressoPagina = () => {
                   fontSize: 13,
                 }}
               >
-                Acompanhe o desempenho dos alunos por curso e matéria
+                {isProfessor
+                  ? 'Acompanhe o desempenho dos alunos por curso e matéria'
+                  : 'Acompanhe seu desempenho nas matérias e atividades'}
               </p>
             </div>
           </div>
@@ -668,12 +694,7 @@ const ManterProgressoPagina = () => {
           </button>
         </div>
 
-        {!loadingAuth && !isProfessor ? (
-          <div className="empty-state">
-            <BarChart3 size={42} style={{ opacity: 0.3 }} />
-            <p>Esta página está disponível apenas para professores.</p>
-          </div>
-        ) : loading ? (
+        {loadingAuth || loading ? (
           <div className="empty-state">
             <div
               className="spinner"
@@ -681,19 +702,157 @@ const ManterProgressoPagina = () => {
             />
             <p>Carregando relatório de progresso...</p>
           </div>
+        ) : !isProfessor && !isAluno ? (
+          <div className="empty-state">
+            <BarChart3 size={42} style={{ opacity: 0.3 }} />
+            <p>Seu perfil não possui acesso a esta página.</p>
+          </div>
+        ) : isAluno ? (
+          <>
+            {!relatorioAluno ? (
+              <div className="empty-state">
+                <BarChart3 size={42} style={{ opacity: 0.3 }} />
+                <p>Não foi possível localizar seu progresso.</p>
+              </div>
+            ) : (
+              <>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns:
+                      'repeat(auto-fit, minmax(190px, 1fr))',
+                    gap: 14,
+                    marginBottom: 26,
+                  }}
+                >
+                  <div className="card">
+                    <BookOpen size={21} color="var(--success)" />
+                    <p
+                      style={{
+                        color: 'var(--text-muted)',
+                        fontSize: 12,
+                      }}
+                    >
+                      Matérias vinculadas
+                    </p>
+                    <strong style={{ fontSize: 22 }}>
+                      {relatorioAluno.materias.length}
+                    </strong>
+                  </div>
+
+                  <div className="card">
+                    <ClipboardList
+                      size={21}
+                      color="var(--success)"
+                    />
+                    <p
+                      style={{
+                        color: 'var(--text-muted)',
+                        fontSize: 12,
+                      }}
+                    >
+                      Atividades
+                    </p>
+                    <strong style={{ fontSize: 22 }}>
+                      {relatorioAluno.materias.reduce(
+                        (total, materia) =>
+                          total + materia.total_atividades,
+                        0,
+                      )}
+                    </strong>
+                  </div>
+
+                  <div className="card">
+                    <BarChart3 size={21} color="var(--success)" />
+                    <p
+                      style={{
+                        color: 'var(--text-muted)',
+                        fontSize: 12,
+                      }}
+                    >
+                      Progresso geral
+                    </p>
+                    <strong
+                      style={{
+                        fontSize: 22,
+                        color: obterCorProgresso(
+                          relatorioAluno.percentual,
+                        ),
+                      }}
+                    >
+                      {formatarPercentual(relatorioAluno.percentual)}
+                    </strong>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 15 }}>
+                  <h2 style={{ fontSize: 16, fontWeight: 600 }}>
+                    Minhas matérias
+                  </h2>
+
+                  <p
+                    style={{
+                      color: 'var(--text-muted)',
+                      fontSize: 12,
+                      marginTop: 4,
+                    }}
+                  >
+                    Abra uma matéria para consultar suas atividades,
+                    prazos e percentuais de conclusão.
+                  </p>
+                </div>
+
+                {relatorioAluno.materias.length === 0 ? (
+                  <div className="empty-state">
+                    <BookOpen
+                      size={42}
+                      style={{ opacity: 0.3 }}
+                    />
+                    <p>
+                      Você ainda não está vinculado a nenhuma matéria.
+                    </p>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 12,
+                    }}
+                  >
+                    {relatorioAluno.materias.map((materia) => (
+                      <CardMateria
+                        key={materia.materia_id}
+                        materia={materia}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </>
         ) : (
           <>
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+                gridTemplateColumns:
+                  'repeat(auto-fit, minmax(190px, 1fr))',
                 gap: 14,
                 marginBottom: 26,
               }}
             >
               <div className="card">
-                <GraduationCap size={21} color="var(--success)" />
-                <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                <GraduationCap
+                  size={21}
+                  color="var(--success)"
+                />
+                <p
+                  style={{
+                    color: 'var(--text-muted)',
+                    fontSize: 12,
+                  }}
+                >
                   Cursos
                 </p>
                 <strong style={{ fontSize: 22 }}>
@@ -703,7 +862,12 @@ const ManterProgressoPagina = () => {
 
               <div className="card">
                 <Users size={21} color="var(--success)" />
-                <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                <p
+                  style={{
+                    color: 'var(--text-muted)',
+                    fontSize: 12,
+                  }}
+                >
                   Alunos
                 </p>
                 <strong style={{ fontSize: 22 }}>
@@ -724,8 +888,8 @@ const ManterProgressoPagina = () => {
                   marginTop: 4,
                 }}
               >
-                Expanda um curso, selecione um aluno e abra uma matéria para
-                visualizar as atividades realizadas.
+                Expanda um curso, selecione um aluno e abra uma matéria
+                para visualizar as atividades realizadas.
               </p>
             </div>
 
@@ -745,7 +909,10 @@ const ManterProgressoPagina = () => {
                 }}
               >
                 {relatorio.cursos.map((curso) => (
-                  <CardCurso key={curso.curso} curso={curso} />
+                  <CardCurso
+                    key={curso.curso}
+                    curso={curso}
+                  />
                 ))}
               </div>
             )}

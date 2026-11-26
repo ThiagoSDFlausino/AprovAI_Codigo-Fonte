@@ -1,6 +1,9 @@
 import ManterRelatorioProgressoDAO from '../DAO/ManterRelatorioProgressoDAO';
 
-import type { RelatorioProgresso } from '../Progresso/RelatorioProgresso';
+import type {
+  AlunoProgressoRelatorio,
+  RelatorioProgresso,
+} from '../Progresso/RelatorioProgresso';
 
 const ManterRelatorioProgressoRepository = {
   async PesquisaRelatorioProgresso(
@@ -8,6 +11,14 @@ const ManterRelatorioProgressoRepository = {
   ): Promise<RelatorioProgresso> {
     return ManterRelatorioProgressoDAO.PesquisaRelatorioProgresso(
       professorId,
+    );
+  },
+
+  async PesquisaRelatorioProgressoAluno(
+    alunoId: string,
+  ): Promise<AlunoProgressoRelatorio> {
+    return ManterRelatorioProgressoDAO.PesquisaRelatorioProgressoAluno(
+      alunoId,
     );
   },
 };
