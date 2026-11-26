@@ -5,7 +5,7 @@ import { useAuth } from '../../Auth/contexts/AuthContext';
 import UsuarioController from '../Controller/ManterUsuarioController';
 import UserModal from './ManterUsuarioModal';
 import { Perfil, normalizarPerfil, type Usuario } from '../../classes';
-import Navbar from '../../components/shared/Navbar';
+import Navbar from '../../components/Navbar';
 
 const PERFIL_LABEL: Record<Perfil, string> = {
   [Perfil.Adm]: 'Administrador',

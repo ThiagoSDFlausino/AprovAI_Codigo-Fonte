@@ -1,4 +1,13 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+
 import AuthService from '../Service/AuthService';
 import AuthRepository from '../Repositories/AuthRepository';
 import UsuarioService from '../../ManterUsuario/Service/ManterUsuarioService';
@@ -12,40 +21,53 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const authVersion = useRef(0);
+  const profileVersion = useRef(0);
+
   useEffect(() => {
     let cancelled = false;
 
-    AuthService.getCurrentSession()
-      .then(async (session) => {
-        if (cancelled) return;
-        if (session?.user) {
-          setUser(session.user);
-          try {
-            const prof = await UsuarioService.PesquisaPerfilUsuario(session.user.id);
-            if (!cancelled) setProfile(prof);
-          } catch {
-           
-          }
+    const carregarPerfil = async (userId: string, versao: number) => {
+      try {
+        const prof = await UsuarioService.PesquisaPerfilUsuario(userId);
+
+        if (
+          cancelled ||
+          versao !== profileVersion.current
+        ) {
+          return;
         }
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+
+        setProfile(prof);
+      } catch {
+        if (
+          !cancelled &&
+          versao === profileVersion.current
+        ) {
+          setProfile(null);
+        }
+      }
+    };
 
     const {
       data: { subscription },
     } = AuthService.onAuthStateChange((_event, session) => {
       if (cancelled) return;
+
+      authVersion.current += 1;
+      profileVersion.current += 1;
+
+      const versaoPerfil = profileVersion.current;
+
       if (session?.user) {
         setUser(session.user);
+        setProfile(null);
+
+        // A consulta é iniciada fora do callback de autenticação.
         setTimeout(() => {
           if (cancelled) return;
-          UsuarioService.PesquisaPerfilUsuario(session.user.id)
-            .then((prof) => {
-              if (!cancelled) setProfile(prof);
-            })
-            .catch(() => {});
+
+          carregarPerfil(session.user.id, versaoPerfil);
         }, 0);
       } else {
         setUser(null);
@@ -53,13 +75,54 @@ export const AuthProvider = ({ children }) => {
       }
     });
 
+    const versaoInicial = authVersion.current;
+
+    AuthService.getCurrentSession()
+      .then(async (session) => {
+        if (
+          cancelled ||
+          versaoInicial !== authVersion.current
+        ) {
+          return;
+        }
+
+        if (session?.user) {
+          setUser(session.user);
+
+          profileVersion.current += 1;
+
+          await carregarPerfil(
+            session.user.id,
+            profileVersion.current
+          );
+        } else {
+          setUser(null);
+          setProfile(null);
+        }
+      })
+      .catch(() => {
+        if (versaoInicial === authVersion.current) {
+          setUser(null);
+          setProfile(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
     return () => {
       cancelled = true;
       subscription?.unsubscribe();
     };
   }, []);
-  const refreshProfile = useCallback(async (userIdOverride) => {
+
+  const refreshProfile = useCallback(async (userIdOverride?: string) => {
+    const versao = ++profileVersion.current;
+
     let id = userIdOverride;
+
     if (!id) {
       try {
         id = (await AuthRepository.getCurrentUser())?.id;
@@ -67,21 +130,48 @@ export const AuthProvider = ({ children }) => {
         id = undefined;
       }
     }
-    if (!id) return;
+
+    if (!id) {
+      if (versao === profileVersion.current) {
+        setProfile(null);
+      }
+      return;
+    }
+
     try {
       const prof = await UsuarioService.PesquisaPerfilUsuario(id);
-      setProfile(prof);
+
+      if (versao === profileVersion.current) {
+        setProfile(prof);
+      }
     } catch {
-      setProfile(null);
+      if (versao === profileVersion.current) {
+        setProfile(null);
+      }
     }
   }, []);
 
-  const isAdmin = normalizarPerfil(profile?.perfil) === Perfil.Adm;
-  const isProfessor = normalizarPerfil(profile?.perfil) === Perfil.Professor;
-  const isAluno = normalizarPerfil(profile?.perfil) === Perfil.Aluno;
+  const isAdmin =
+    normalizarPerfil(profile?.perfil) === Perfil.Adm;
+
+  const isProfessor =
+    normalizarPerfil(profile?.perfil) === Perfil.Professor;
+
+  const isAluno =
+    normalizarPerfil(profile?.perfil) === Perfil.Aluno;
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isAdmin, isProfessor, isAluno, refreshProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        isAdmin,
+        isProfessor,
+        isAluno,
+        refreshProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -89,6 +179,10 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
+
+  if (!ctx) {
+    throw new Error('useAuth must be used inside AuthProvider');
+  }
+
   return ctx;
 };
